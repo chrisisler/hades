@@ -5,6 +5,7 @@
 // Need a button on the top directory of sound samples to add them to the queue.
 // Need gridlines (and enhanced gridlines every K'th (where K is input by UI)).
 // Need a way to get output from this app and turn it into some thing a DAW can use.
+// Scroll queued samples container right most if item is added.
 
 import React, { Component, createRef } from 'react'
 import PropTypes from 'prop-types'
@@ -21,9 +22,7 @@ class Sound extends Component {
   node = createRef()
 
   clicked = event => {
-    // always play sound from beginning
-    this.node.current.currentTime = 0
-    this.node.current.play()
+    playAudio(this.node.current)
   }
 
   doubleClicked = event => {
@@ -52,13 +51,26 @@ class Sound extends Component {
 
 class PlayButton extends Component {
   state = {
-    isPlaying: false,
     disabled: this.props.numberOfQueuedSounds === 0
   }
 
   static propTypes = {
     numberOfQueuedSounds: PropTypes.number.isRequired,
-    playTrack: PropTypes.func.isRequired
+    start: PropTypes.func.isRequired
+  }
+
+  componentDidMount() {
+    this.listener = event => {
+      if (event.code === 'Space') {
+        this.props.start()
+      }
+    }
+
+    window.addEventListener('keydown', this.listener)
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.listener)
   }
 
   componentDidUpdate(previousProps) {
@@ -67,29 +79,31 @@ class PlayButton extends Component {
 
     // if either are 0, toggle it
     if (current === 0 || previous === 0) {
+      let currentlyDisabled = previous > current
+
       this.setState({
-        isPlaying: !this.state.isPlaying
+        disabled: currentlyDisabled
       })
     }
   }
 
   clicked = () => {
-    const { isPlaying, disabled } = this.state
-
-    if (disabled) {
+    if (this.state.disabled) {
       return // noop
     }
-
-    this.setState({
-      isPlaying: !isPlaying
-    })
+    this.props.start()
   }
 
   render() {
+    const { disabled } = this.state
+
     return (
-      <div className="play-btn-container">
-        <button onClick={this.clicked}>
-          {this.state.isPlaying ? '>' : '||'}
+      <div
+        className={`play-btn-container ${disabled ? 'disabled' : null}`}
+        onClick={this.clicked}
+      >
+        <button className={disabled ? 'disabled' : null} onClick={this.clicked}>
+          {'>'}
         </button>
       </div>
     )
@@ -102,23 +116,28 @@ export default class App extends Component {
     sounds: []
   }
 
-  addSound = node => {
+  addSound = audioNodeRef => {
     this.setState({
-      sounds: this.state.sounds.concat(node)
+      sounds: this.state.sounds.concat(audioNodeRef)
     })
   }
 
-  playTrack = () => {
-    if (this.state.sounds.length === 0) {
+  start = async () => {
+    let { sounds } = this.state
+    let size = sounds.length
+
+    if (size === 0) {
       alert('Double click sounds from the top to queue them at bottom.')
       return
     }
 
-    this.state.sounds.forEach(async sound => {
-      sound.node.current.play()
-      console.log('delaying')
-      await delay(200)
-    })
+    for (let index = 0; index < size; index++) {
+      if (index !== 0) {
+        await delay(200)
+      }
+
+      playAudio(sounds[index].node.current)
+    }
   }
 
   render() {
@@ -138,6 +157,16 @@ export default class App extends Component {
       <main>
         <div className="sound-items-container">
           <Sound
+            name="hihat"
+            path="./sounds/hihat.wav"
+            addSound={this.addSound}
+          />
+          <Sound
+            name="snare"
+            path="./sounds/snare.wav"
+            addSound={this.addSound}
+          />
+          <Sound
             name="kick"
             path="./sounds/kick.wav"
             addSound={this.addSound}
@@ -145,8 +174,11 @@ export default class App extends Component {
         </div>
 
         <section className="song-container sound-items-container">
-          <PlayButton numberOfQueuedSounds={size} playTrack={this.playTrack} />
-          {QueuedSoundViews || 'You need waayy more clout, yo.'}
+          <PlayButton numberOfQueuedSounds={size} start={this.start} />
+
+          <div className="sound-items-container">
+            {QueuedSoundViews || 'You need waayy more clout, yo.'}
+          </div>
         </section>
       </main>
     )
@@ -156,4 +188,16 @@ export default class App extends Component {
 // https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep/39914235#39914235
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function playAudio(audioNode) {
+  if (!audioNode) {
+    console.error(`Cannot play audioNode: ${audioNode}`)
+  }
+
+  // always play sound from beginning.
+  // setting `currentTime` also fixes the bug where playing two of the same
+  // neighboring sound samples only emits a single sound.
+  audioNode.currentTime = 0
+  audioNode.play()
 }

@@ -55,11 +55,20 @@ kbd { display: block; }
   cursor: pointer;
   min-height: 100%;
   background-color: #b2ffd9;
-  width: 20%;
-  margin: 0 1.5rem 0 0;
+  min-width: 20%;
+  margin: 0 1rem 0 0;
   padding: 0;
 }
+.play-btn-container:active {
+  color: black;
+}
+.play-btn-container.disabled {
+  /* background-color: red; */
+  background-color: #efefef;
+  cursor: not-allowed;
+}
 .play-btn-container button {
+  cursor: pointer;
   outline: none;
   color: black;
   margin: 50% auto;
@@ -67,6 +76,10 @@ kbd { display: block; }
   padding: 0;
   background: none;
   border: none;
-  color: white;
   font-size: 600%;
+} .play-btn-container button:active {
+  color: white;
+} .play-btn-container button.disabled {
+  color: #bbb;
+  cursor: not-allowed;
 }
