@@ -14,14 +14,32 @@
   cursor: pointer;
   margin: 1rem;
   font-size: 1.5rem;
-  padding: 1.8rem 1.2rem;
+  padding: 2rem 1.2rem;
   text-align: center;
-  text-shadow: 0 0 .5rem #ccc;
+  position: relative;
 } .sound-item:hover {
   color: black;
   border-color: black;
 } .sound-item:active {
   transform: scale(1.1);
+}
+.sound-item kbd {
+  text-shadow: 0 0 .5rem #ccc;
+}
+.sound-item-delete {
+  margin: 0;
+  padding: 0 8px;
+  width: min-content;
+  color: #888;
+  font-weight: lighter;
+  font-size: smaller;
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  /* background-color: black; */
+  /* color: white; */
+  /* border-radius: 50%; */
 }
 
 /* apparently this does something */

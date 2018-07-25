@@ -1,16 +1,48 @@
 // Goals:
-// Place a left-to-right scrolling sound item selector at top of view (?).
-// Delete for Sound items that are queued at the bottom.
 // More sound files (drum kit, piano).
 // Need a button on the top directory of sound samples to add them to the queue.
 // Need gridlines (and enhanced gridlines every K'th (where K is input by UI)).
 // Need a way to get output from this app and turn it into some thing a DAW can use.
 // Scroll queued samples container right most if item is added.
+// TODO: onplay => animate css
 
 import React, { Component, createRef } from 'react'
 import PropTypes from 'prop-types'
 
 import './App.css'
+
+class QueuedSound extends Component {
+  static propTypes = {
+    name: PropTypes.string.isRequired,
+    path: PropTypes.string.isRequired,
+    deleteSound: PropTypes.func.isRequired
+  }
+
+  node = createRef()
+
+  clicked = event => {
+    // this function is called even when the user clicks the X
+    // intending to delete the sound, not play it.
+    if (!event.target.classList.contains('sound-item-delete')) {
+      log(`Playing queued sound "${this.props.name}".`)
+      playAudio(this.node.current)
+    }
+  }
+
+  render() {
+    const { name, path, deleteSound } = this.props
+
+    return (
+      <div className="sound-item" onClick={this.clicked}>
+        <kbd>{name}</kbd>
+        <audio src={path} ref={this.node} />
+        <div className="sound-item-delete" onClick={deleteSound}>
+          x
+        </div>
+      </div>
+    )
+  }
+}
 
 class Sound extends Component {
   static propTypes = {
@@ -21,11 +53,21 @@ class Sound extends Component {
 
   node = createRef()
 
+  // TODO: onplay => animate css
+  // componentDidMount() {
+  //   this.node.current.onplay = () => {
+  //   }
+  // }
+
   clicked = event => {
+    // DEV re-enable this log after refactoring doubleClicked() to enqueue()
+    //   with a separate ui button like QueuedSound
+    // log(`Clicked sound "${this.props.name}".`)
     playAudio(this.node.current)
   }
 
   doubleClicked = event => {
+    log(`Double clicking sound "${this.props.name}".`)
     this.props.addSound({
       name: this.props.name,
       path: this.props.path,
@@ -50,20 +92,14 @@ class Sound extends Component {
 }
 
 class PlayButton extends Component {
-  state = {
-    disabled: this.props.numberOfQueuedSounds === 0
-  }
-
   static propTypes = {
-    numberOfQueuedSounds: PropTypes.number.isRequired,
+    disabled: PropTypes.bool.isRequired,
     start: PropTypes.func.isRequired
   }
 
   componentDidMount() {
     this.listener = event => {
-      if (event.code === 'Space') {
-        this.props.start()
-      }
+      if (event.code === 'Space') this.props.start()
     }
 
     window.addEventListener('keydown', this.listener)
@@ -73,29 +109,16 @@ class PlayButton extends Component {
     window.removeEventListener('keydown', this.listener)
   }
 
-  componentDidUpdate(previousProps) {
-    let current = this.props.numberOfQueuedSounds
-    let previous = previousProps.numberOfQueuedSounds
-
-    // if either are 0, toggle it
-    if (current === 0 || previous === 0) {
-      let currentlyDisabled = previous > current
-
-      this.setState({
-        disabled: currentlyDisabled
-      })
-    }
-  }
-
   clicked = () => {
-    if (this.state.disabled) {
+    const { disabled, start } = this.props
+    if (disabled) {
       return // noop
     }
-    this.props.start()
+    start()
   }
 
   render() {
-    const { disabled } = this.state
+    const { disabled } = this.props
 
     return (
       <div
@@ -112,19 +135,32 @@ class PlayButton extends Component {
 
 export default class App extends Component {
   state = {
-    // TODO use the Queue<T> class
-    sounds: []
+    queued: []
   }
 
-  addSound = audioNodeRef => {
+  // the parameter is written like this to enforce that I
+  // dont mess up the state schema
+  addSound = ({ name, path, node }) => {
+    log(`Adding sound "${name}" to queue.`)
+
     this.setState({
-      sounds: this.state.sounds.concat(audioNodeRef)
+      queued: this.state.queued.concat({ name, path, node })
+    })
+  }
+
+  // Sorta dependency injecting when mapping props to view.
+  createDeleteSound = index => () => {
+    log(`Deleting sound "${this.state.queued[index].name}" at index ${index}.`)
+    this.setState({
+      queued: this.state.queued.filter((_, i) => i !== index)
     })
   }
 
   start = async () => {
-    let { sounds } = this.state
-    let size = sounds.length
+    log('Starting song.')
+
+    let { queued } = this.state
+    let size = queued.length
 
     if (size === 0) {
       alert('Double click sounds from the top to queue them at bottom.')
@@ -136,20 +172,20 @@ export default class App extends Component {
         await delay(200)
       }
 
-      playAudio(sounds[index].node.current)
+      playAudio(queued[index].node.current)
     }
   }
 
   render() {
-    let size = this.state.sounds.length
+    let size = this.state.queued.length
     let QueuedSoundViews =
       size &&
-      this.state.sounds.map((sound, index) => (
-        <Sound
+      this.state.queued.map((sound, index) => (
+        <QueuedSound
           key={sound.path + index}
           name={sound.name}
           path={sound.path}
-          addSound={this.addSound}
+          deleteSound={this.createDeleteSound(index)}
         />
       ))
 
@@ -174,7 +210,7 @@ export default class App extends Component {
         </div>
 
         <section className="song-container sound-items-container">
-          <PlayButton numberOfQueuedSounds={size} start={this.start} />
+          <PlayButton disabled={size === 0} start={this.start} />
 
           <div className="sound-items-container">
             {QueuedSoundViews || 'You need waayy more clout, yo.'}
@@ -195,9 +231,20 @@ function playAudio(audioNode) {
     console.error(`Cannot play audioNode: ${audioNode}`)
   }
 
+  // log(`Playing audio ${audioNode}`)
+
   // always play sound from beginning.
   // setting `currentTime` also fixes the bug where playing two of the same
   // neighboring sound samples only emits a single sound.
   audioNode.currentTime = 0
   audioNode.play()
+}
+
+const DEV = process.env.NODE_ENV !== 'production'
+function log(message) {
+  if (DEV) {
+    if (console) {
+      console.log('Log: ' + message)
+    }
+  }
 }
