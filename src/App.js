@@ -11,6 +11,8 @@ import PropTypes from 'prop-types'
 
 import './App.css'
 
+const auxiliaryButtonClass = 'sound-item-aux'
+
 class QueuedSound extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
@@ -23,8 +25,8 @@ class QueuedSound extends Component {
   clicked = event => {
     // this function is called even when the user clicks the X
     // intending to delete the sound, not play it.
-    if (!event.target.classList.contains('sound-item-delete')) {
-      log(`Playing queued sound "${this.props.name}".`)
+    if (!event.target.classList.contains(auxiliaryButtonClass)) {
+      log(`Clicked queued sound "${this.props.name}".`)
       playAudio(this.node.current)
     }
   }
@@ -36,7 +38,7 @@ class QueuedSound extends Component {
       <div className="sound-item" onClick={this.clicked}>
         <kbd>{name}</kbd>
         <audio src={path} ref={this.node} />
-        <div className="sound-item-delete" onClick={deleteSound}>
+        <div className={auxiliaryButtonClass} onClick={deleteSound}>
           x
         </div>
       </div>
@@ -60,14 +62,15 @@ class Sound extends Component {
   // }
 
   clicked = event => {
-    // DEV re-enable this log after refactoring doubleClicked() to enqueue()
-    //   with a separate ui button like QueuedSound
-    // log(`Clicked sound "${this.props.name}".`)
-    playAudio(this.node.current)
+    // If user did NOT click the auxiliary button, then:
+    if (!event.target.classList.contains(auxiliaryButtonClass)) {
+      log(`Clicked sound "${this.props.name}".`)
+      playAudio(this.node.current)
+    }
   }
 
-  doubleClicked = event => {
-    log(`Double clicking sound "${this.props.name}".`)
+  enqueue = event => {
+    log(`Enqueueing sound "${this.props.name}".`)
     this.props.addSound({
       name: this.props.name,
       path: this.props.path,
@@ -79,13 +82,12 @@ class Sound extends Component {
     const { name, path } = this.props
 
     return (
-      <div
-        className="sound-item"
-        onClick={this.clicked}
-        onDoubleClick={this.doubleClicked}
-      >
+      <div className="sound-item" onClick={this.clicked}>
         <kbd>{name}</kbd>
         <audio src={path} ref={this.node} />
+        <div className={auxiliaryButtonClass} onClick={this.enqueue}>
+          +
+        </div>
       </div>
     )
   }
@@ -138,11 +140,8 @@ export default class App extends Component {
     queued: []
   }
 
-  // the parameter is written like this to enforce that I
-  // dont mess up the state schema
   addSound = ({ name, path, node }) => {
     log(`Adding sound "${name}" to queue.`)
-
     this.setState({
       queued: this.state.queued.concat({ name, path, node })
     })
