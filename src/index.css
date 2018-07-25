@@ -1,4 +1,8 @@
 body, html {
+  background-color: #efffff;
+  color: #555;
+  /* color: #ffb2ff; */
+  /* color: #ffb2b2; */
   margin: 0;
   padding: 0;
   font-family: sans-serif;

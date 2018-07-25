@@ -1,22 +1,50 @@
 .sound-items-container {
+  overflow-x: scroll;
   display: flex;
   flex: 1;
-  /* min-height: 100vh; */
+  /* min-height: 10vh; */
   align-items: center;
   /* justify-content: center; */
 }
 
 .sound-item {
-  border: .1rem solid black;
-  border-radius: .5rem;
+  border: 1px solid #999;
+  border-radius: .4rem;
+  min-width: 6rem;
+  cursor: pointer;
   margin: 1rem;
   font-size: 1.5rem;
   padding: 1.8rem 1.2rem;
-  widht: 10rem;
   text-align: center;
-  text-shadow: 0 0 .5rem #aaa;
+  text-shadow: 0 0 .5rem #ccc;
+} .sound-item:hover {
+  color: black;
+  border-color: black;
+} .sound-item:active {
+  transform: scale(1.1);
 }
 
-kbd {
-  display: block;
+/* apparently this does something */
+kbd { display: block; }
+
+.song-container {
+  display: flex;
+  min-height: 20vh;
+  width: 100vw;
+  position: absolute;
+  /* https://stackoverflow.com/questions/37386244/what-does-flex-1-mean */
+  flex: 1;
+  align-items: center;
+  /* border: 1px solid #777; */
+  background-color: #c9ffff;
+  margin: 0;
+  bottom: 0;
+  left: 0;
+
+  /* align text case where state = [] */
+  /* TODO try commenting out all this code once state is in */
+  color: #ffa2a2;
+  font-size: larger;
+  letter-spacing: 0.3px;
+  justify-content: center;
 }
