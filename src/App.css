@@ -28,8 +28,8 @@
 kbd { display: block; }
 
 .song-container {
-  display: flex;
   min-height: 20vh;
+  max-height: 20vh;
   width: 100vw;
   position: absolute;
   /* https://stackoverflow.com/questions/37386244/what-does-flex-1-mean */
@@ -38,13 +38,35 @@ kbd { display: block; }
   /* border: 1px solid #777; */
   background-color: #c9ffff;
   margin: 0;
+  padding: 0;
   bottom: 0;
   left: 0;
 
-  /* align text case where state = [] */
-  /* TODO try commenting out all this code once state is in */
-  color: #ffa2a2;
-  font-size: larger;
-  letter-spacing: 0.3px;
-  justify-content: center;
+  /* sounds in song container are active */
+  color: black;
+}
+
+/* align text case where state = [] */
+.song-container p {
+  margin: 0 auto;
+}
+
+.play-btn-container {
+  cursor: pointer;
+  min-height: 100%;
+  background-color: #b2ffd9;
+  width: 20%;
+  margin: 0 1.5rem 0 0;
+  padding: 0;
+}
+.play-btn-container button {
+  outline: none;
+  color: black;
+  margin: 50% auto;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 600%;
 }
