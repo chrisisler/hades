@@ -16,7 +16,7 @@ const auxiliaryButtonClass = 'sound-item-aux'
 class QueuedSound extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
-    path: PropTypes.string.isRequired,
+    path: PropTypes.string,
     deleteSound: PropTypes.func.isRequired
   }
 
@@ -49,7 +49,8 @@ class QueuedSound extends Component {
 class Sound extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
-    path: PropTypes.string.isRequired,
+    // If no audio file provided, it's a rest.
+    path: PropTypes.string,
     addSound: PropTypes.func.isRequired
   }
 
@@ -73,7 +74,7 @@ class Sound extends Component {
     log(`Enqueueing sound "${this.props.name}".`)
     this.props.addSound({
       name: this.props.name,
-      path: this.props.path,
+      path: this.props.path && this.props.path,
       node: this.node
     })
   }
@@ -206,6 +207,7 @@ export default class App extends Component {
             path="./sounds/kick.wav"
             addSound={this.addSound}
           />
+          <Sound name="rest" addSound={this.addSound} />
         </div>
 
         <section className="song-container sound-items-container">
