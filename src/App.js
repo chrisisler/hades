@@ -4,6 +4,8 @@
 // Need gridlines (and enhanced gridlines every K'th (where K is input by UI)).
 // Need a way to get output from this app and turn it into some thing a DAW can use.
 // Scroll queued samples container right most if item is added.
+// ADD LOOP FEATURE
+// ADD CHANGE BPM FEATURE
 // TODO: onplay => animate css
 
 import React, { Component, createRef } from 'react'
@@ -169,7 +171,12 @@ export default class App extends Component {
 
     for (let index = 0; index < size; index++) {
       if (index !== 0) {
-        await delay(200)
+        if (index % 2 === 0) {
+          // TODO: adjustable swing variable via UI
+          await delay(200 - 98)
+        } else {
+          await delay(200)
+        }
       }
 
       playAudio(queued[index].node.current)
