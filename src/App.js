@@ -15,6 +15,8 @@ import './App.css'
 
 const auxiliaryButtonClass = 'sound-item-aux'
 
+let id = 0
+
 class QueuedSound extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
@@ -140,7 +142,10 @@ class PlayButton extends Component {
 
 export default class App extends Component {
   state = {
-    queued: []
+    queued: [],
+    // TODO
+    swing: false,
+    loop: false
   }
 
   addSound = ({ name, path, node }) => {
@@ -171,9 +176,12 @@ export default class App extends Component {
 
     for (let index = 0; index < size; index++) {
       if (index !== 0) {
-        if (index % 2 === 0) {
-          // TODO: adjustable swing variable via UI
-          await delay(200 - 98)
+        if (this.state.swing) {
+          if (index % 2 === 0) {
+            await delay(200 - 98)
+          } else {
+            await delay(200)
+          }
         } else {
           await delay(200)
         }
@@ -181,6 +189,20 @@ export default class App extends Component {
 
       playAudio(queued[index].node.current)
     }
+
+    if (this.state.loop) {
+      await delay(200)
+      this.start()
+    }
+  }
+
+  bpm = event => {
+    event.persist()
+    console.log('event is:', event)
+    console.log('event.target is:', event.target)
+    console.log('event.target.key is:', event.target.key)
+    // console.log('event.target.key is:', event.target.key)
+    // console.log('event.target.keyCode is:', event.target.keyCode)
   }
 
   render() {
@@ -189,7 +211,7 @@ export default class App extends Component {
       size &&
       this.state.queued.map((sound, index) => (
         <QueuedSound
-          key={sound.path + index}
+          key={id++}
           name={sound.name}
           path={sound.path}
           deleteSound={this.createDeleteSound(index)}
@@ -216,6 +238,13 @@ export default class App extends Component {
           />
           <Sound name="rest" addSound={this.addSound} />
         </div>
+
+        <input
+          type="text"
+          placeholder="BPM"
+          className="bpm-input"
+          onInput={this.bpm}
+        />
 
         <section className="song-container sound-items-container">
           <PlayButton disabled={size === 0} start={this.start} />
@@ -252,7 +281,7 @@ const DEV = process.env.NODE_ENV !== 'production'
 function log(message) {
   if (DEV) {
     if (console) {
-      console.log('Log: ' + message)
+      // console.log('Log: ' + message)
     }
   }
 }

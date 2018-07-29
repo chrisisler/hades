@@ -101,3 +101,12 @@ kbd { display: block; }
   color: #bbb;
   cursor: not-allowed;
 }
+
+.bpm-input {
+  padding: 8px;
+  margin: 8px;
+  font-size: larger;
+  background-color: inherit;
+  border: none;
+  border-bottom: 2px solid #888;
+}
