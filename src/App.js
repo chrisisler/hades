@@ -1,6 +1,5 @@
 // Goals:
 // More sound files (drum kit, piano).
-// Need a button on the top directory of sound samples to add them to the queue.
 // Need gridlines (and enhanced gridlines every K'th (where K is input by UI)).
 // Need a way to get output from this app and turn it into some thing a DAW can use.
 // Scroll queued samples container right most if item is added.
@@ -13,7 +12,8 @@ import PropTypes from 'prop-types'
 
 import './App.css'
 
-const auxiliaryButtonClass = 'sound-item-aux'
+// @see App.css
+const auxBtnClass = 'sound-item-aux-btn'
 
 let id = 0
 
@@ -29,7 +29,7 @@ class QueuedSound extends Component {
   clicked = event => {
     // this function is called even when the user clicks the X
     // intending to delete the sound, not play it.
-    if (!event.target.classList.contains(auxiliaryButtonClass)) {
+    if (!event.target.classList.contains(auxBtnClass)) {
       log(`Clicked queued sound "${this.props.name}".`)
       playAudio(this.node.current)
     }
@@ -42,7 +42,7 @@ class QueuedSound extends Component {
       <div className="sound-item" onClick={this.clicked}>
         <kbd>{name}</kbd>
         <audio src={path} ref={this.node} />
-        <div className={auxiliaryButtonClass} onClick={deleteSound}>
+        <div className={auxBtnClass} onClick={deleteSound}>
           x
         </div>
       </div>
@@ -53,8 +53,7 @@ class QueuedSound extends Component {
 class Sound extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
-    // If no audio file provided, it's a rest.
-    path: PropTypes.string,
+    path: PropTypes.string, // If no audio provided, this is a rest note.
     addSound: PropTypes.func.isRequired
   }
 
@@ -68,17 +67,18 @@ class Sound extends Component {
 
   clicked = event => {
     // If user did NOT click the auxiliary button, then:
-    if (!event.target.classList.contains(auxiliaryButtonClass)) {
+    if (!event.target.classList.contains(auxBtnClass)) {
       log(`Clicked sound "${this.props.name}".`)
       playAudio(this.node.current)
     }
   }
 
   enqueue = event => {
-    log(`Enqueueing sound "${this.props.name}".`)
-    this.props.addSound({
-      name: this.props.name,
-      path: this.props.path && this.props.path,
+    const { addSound, name, path } = this.props
+
+    addSound({
+      name: name,
+      path: path && path,
       node: this.node
     })
   }
@@ -90,7 +90,7 @@ class Sound extends Component {
       <div className="sound-item" onClick={this.clicked}>
         <kbd>{name}</kbd>
         <audio src={path} ref={this.node} />
-        <div className={auxiliaryButtonClass} onClick={this.enqueue}>
+        <div className={auxBtnClass} onClick={this.enqueue}>
           +
         </div>
       </div>
@@ -118,9 +118,7 @@ class PlayButton extends Component {
 
   clicked = () => {
     const { disabled, start } = this.props
-    if (disabled) {
-      return // noop
-    }
+    if (disabled) return
     start()
   }
 
@@ -143,9 +141,9 @@ class PlayButton extends Component {
 export default class App extends Component {
   state = {
     queued: [],
-    // TODO
     swing: false,
-    loop: false
+    loop: false,
+    bpm: 120
   }
 
   addSound = ({ name, path, node }) => {
@@ -166,8 +164,8 @@ export default class App extends Component {
   start = async () => {
     log('Starting song.')
 
-    let { queued } = this.state
-    let size = queued.length
+    const { queued, swing, loop, bpm } = this.state
+    const size = queued.length
 
     if (size === 0) {
       alert('Double click sounds from the top to queue them at bottom.')
@@ -175,34 +173,35 @@ export default class App extends Component {
     }
 
     for (let index = 0; index < size; index++) {
+      // Do not delay after pressing start button.
       if (index !== 0) {
-        if (this.state.swing) {
+        if (swing) {
           if (index % 2 === 0) {
-            await delay(200 - 98)
+            const swung = bpm / 3
+            await delay(convert(bpm) - swung)
           } else {
-            await delay(200)
+            await delay(convert(bpm))
           }
         } else {
-          await delay(200)
+          await delay(convert(bpm))
         }
       }
 
       playAudio(queued[index].node.current)
     }
 
-    if (this.state.loop) {
-      await delay(200)
+    if (loop) {
+      await delay(bpm)
       this.start()
     }
   }
 
   bpm = event => {
-    event.persist()
-    console.log('event is:', event)
-    console.log('event.target is:', event.target)
-    console.log('event.target.key is:', event.target.key)
-    // console.log('event.target.key is:', event.target.key)
-    // console.log('event.target.keyCode is:', event.target.keyCode)
+    if (event.key === 'Enter') {
+      this.setState({
+        bpm: +event.target.value
+      })
+    }
   }
 
   render() {
@@ -240,12 +239,13 @@ export default class App extends Component {
         </div>
 
         <input
-          type="text"
+          type="number"
           placeholder="BPM"
           className="bpm-input"
-          onInput={this.bpm}
+          onKeyPress={this.bpm}
         />
 
+        <div className="bpm-display">BPM: {this.state.bpm}</div>
         <section className="song-container sound-items-container">
           <PlayButton disabled={size === 0} start={this.start} />
 
@@ -258,6 +258,13 @@ export default class App extends Component {
   }
 }
 
+// Convert milliseconds to beats per minute at 16th notes.
+function convert(ms) {
+  // TODO: replace `4` with `N` where N is the beat division which may be
+  // pentuplets or triplets or seventuplets or w/e given by user/UI.
+  return 60000 / (ms * 4)
+}
+
 // https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep/39914235#39914235
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -265,13 +272,11 @@ function delay(ms) {
 
 function playAudio(audioNode) {
   if (!audioNode) {
-    console.error(`Cannot play audioNode: ${audioNode}`)
+    console.error(`Cannot play audioNode: ${audioNode.src}`)
   }
 
-  // log(`Playing audio ${audioNode}`)
-
-  // always play sound from beginning.
-  // setting `currentTime` also fixes the bug where playing two of the same
+  // Always play sound from beginning.
+  // Setting `currentTime` fixes the bug where playing two of the same
   // neighboring sound samples only emits a single sound.
   audioNode.currentTime = 0
   audioNode.play()
@@ -280,8 +285,6 @@ function playAudio(audioNode) {
 const DEV = process.env.NODE_ENV !== 'production'
 function log(message) {
   if (DEV) {
-    if (console) {
-      // console.log('Log: ' + message)
-    }
+    console.log('Log: ' + message)
   }
 }
