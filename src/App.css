@@ -8,8 +8,10 @@
 }
 
 .sound-item {
-  border: 2px solid #555;
-  border-radius: .4rem;
+  box-shadow: .3rem .4rem 1.2rem 0 rgba(0,0,0,0.18);
+  border: 1px solid #eee;
+  border: none;
+  border-radius: .2rem;
   min-width: 6rem;
   cursor: pointer;
   margin: 1rem;
@@ -17,9 +19,10 @@
   padding: 2rem 1.2rem;
   text-align: center;
   position: relative;
+  border: 1px solid transparent;
 } .sound-item:hover {
   color: black;
-  border-color: black;
+  border: 1px solid black;
 } .sound-item:active {
   transform: scale(1.1);
 }
@@ -36,10 +39,10 @@
   position: absolute;
   top: 0;
   right: 0;
+}
 
-  /* background-color: black; */
-  /* color: white; */
-  /* border-radius: 50%; */
+.queued-sound-item {
+  background-color: #efefef;
 }
 
 /* apparently this does something */
@@ -53,7 +56,6 @@ kbd { display: block; }
   /* https://stackoverflow.com/questions/37386244/what-does-flex-1-mean */
   flex: 1;
   align-items: center;
-  /* border: 1px solid #777; */
   background-color: #c9ffff;
   margin: 0;
   padding: 0;
@@ -76,6 +78,7 @@ kbd { display: block; }
   min-width: 20%;
   margin: 0 1rem 0 0;
   padding: 0;
+  box-shadow: .3rem .4rem 1.2rem 0 rgba(0,0,0,0.18);
 }
 .play-btn-container:active {
   color: black;
@@ -98,7 +101,7 @@ kbd { display: block; }
 } .play-btn-container button:active {
   color: white;
 } .play-btn-container button.disabled {
-  color: #bbb;
+  color: #ccc;
   cursor: not-allowed;
 }
 
@@ -108,5 +111,34 @@ kbd { display: block; }
   font-size: larger;
   background-color: inherit;
   border: none;
-  border-bottom: 2px solid #888;
+  /* border-bottom: 2px solid #999; */
+  cursor: pointer;
+}
+
+.options-container {
+  border: none;
+  border-radius: .2rem;
+  width: min-content;
+  margin: 1rem;
+  padding: 1rem 2rem;
+  box-shadow: .3rem .4rem 1.8rem 0 rgba(0,0,0,0.1);
+}
+
+.options-btn {
+  padding: 8px 16px;
+  margin: 8px;
+  font-size: larger;
+  border: 1px solid #ddd;
+  border-radius: .2rem;
+  background-color: inherit;
+  cursor: pointer;
+  color: inherit;
+} .options-btn:hover {
+  /* border: 1px solid #fff; */
+  text-decoration: underline
+}
+
+.bpm-error-message {
+  color: red;
+  text-decoration: underline
 }

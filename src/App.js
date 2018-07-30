@@ -4,7 +4,6 @@
 // Need a way to get output from this app and turn it into some thing a DAW can use.
 // Scroll queued samples container right most if item is added.
 // ADD LOOP FEATURE
-// ADD CHANGE BPM FEATURE
 // TODO: onplay => animate css
 
 import React, { Component, createRef } from 'react'
@@ -27,7 +26,7 @@ class QueuedSound extends Component {
   node = createRef()
 
   clicked = event => {
-    // this function is called even when the user clicks the X
+    // this function is called EVEN WHEN the user clicks the X
     // intending to delete the sound, not play it.
     if (!event.target.classList.contains(auxBtnClass)) {
       log(`Clicked queued sound "${this.props.name}".`)
@@ -39,7 +38,7 @@ class QueuedSound extends Component {
     const { name, path, deleteSound } = this.props
 
     return (
-      <div className="sound-item" onClick={this.clicked}>
+      <div className="sound-item queued-sound-item" onClick={this.clicked}>
         <kbd>{name}</kbd>
         <audio src={path} ref={this.node} />
         <div className={auxBtnClass} onClick={deleteSound}>
@@ -143,7 +142,8 @@ export default class App extends Component {
     queued: [],
     swing: false,
     loop: false,
-    bpm: 120
+    bpm: 120,
+    bpmErrorMessage: null // Exists to enforce unsigned integer-ness
   }
 
   addSound = ({ name, path, node }) => {
@@ -177,8 +177,9 @@ export default class App extends Component {
       if (index !== 0) {
         if (swing) {
           if (index % 2 === 0) {
-            const swung = bpm / 3
-            await delay(convert(bpm) - swung)
+            const converted = convert(bpm)
+            const swung = converted / 3
+            await delay(converted - swung)
           } else {
             await delay(convert(bpm))
           }
@@ -191,24 +192,44 @@ export default class App extends Component {
     }
 
     if (loop) {
-      await delay(bpm)
+      await delay(convert(bpm))
       this.start()
     }
   }
 
-  bpm = event => {
+  handleBPM = event => {
     if (event.key === 'Enter') {
-      this.setState({
-        bpm: +event.target.value
-      })
+      if (event.target.value.length === 0) return
+
+      const bpm = +event.target.value
+
+      if (bpm < 40) {
+        this.setState({
+          bpmErrorMessage: 'BPM cannot go below 40.'
+        })
+      } else {
+        this.setState({
+          bpm,
+          bpmErrorMessage: null
+        })
+      }
     }
   }
 
+  toggleLoop = () => {
+    this.setState({ loop: !this.state.loop })
+  }
+
+  toggleSwing = () => {
+    this.setState({ swing: !this.state.swing })
+  }
+
   render() {
-    let size = this.state.queued.length
-    let QueuedSoundViews =
+    const { queued, bpm, swing, loop } = this.state
+    const size = queued.length
+    const QueuedSoundViews =
       size &&
-      this.state.queued.map((sound, index) => (
+      queued.map((sound, index) => (
         <QueuedSound
           key={id++}
           name={sound.name}
@@ -238,14 +259,37 @@ export default class App extends Component {
           <Sound name="rest" addSound={this.addSound} />
         </div>
 
-        <input
-          type="number"
-          placeholder="BPM"
-          className="bpm-input"
-          onKeyPress={this.bpm}
-        />
+        <div className="options-container">
+          {this.state.bpmErrorMessage && (
+            <div className="bpm-error-message">
+              {this.state.bpmErrorMessage}
+            </div>
+          )}
 
-        <div className="bpm-display">BPM: {this.state.bpm}</div>
+          <span>BPM:</span>
+          <input
+            type="number"
+            placeholder={bpm}
+            className="bpm-input"
+            onKeyPress={this.handleBPM}
+            onBlur={this.handleBPM}
+          />
+
+          <br />
+
+          <span>Loop:</span>
+          <button onClick={this.toggleLoop} className="options-btn">
+            {loop ? 'On' : 'Off'}
+          </button>
+
+          <br />
+
+          <span>Swing:</span>
+          <button onClick={this.toggleSwing} className="options-btn">
+            {swing ? 'On' : 'Off'}
+          </button>
+        </div>
+
         <section className="song-container sound-items-container">
           <PlayButton disabled={size === 0} start={this.start} />
 
