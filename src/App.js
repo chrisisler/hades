@@ -3,7 +3,7 @@
 // Need gridlines (and enhanced gridlines every K'th (where K is input by UI)).
 // Need a way to get output from this app and turn it into some thing a DAW can use.
 // Scroll queued samples container right most if item is added.
-// ADD LOOP FEATURE
+// Fix multi-play bug when loop is on and play button is pressed multiple times.
 // TODO: onplay => animate css
 
 import React, { Component, createRef } from 'react'
@@ -11,7 +11,39 @@ import PropTypes from 'prop-types'
 
 import './App.css'
 
-// @see App.css
+const { _stop, _play } = (function() {
+  let current
+
+  const _stop = () => {
+    console.log('current is:', current)
+    if (current) {
+      current.stop()
+      // current = undefined
+    }
+  }
+
+  const _play = audioNode => {
+    if (!audioNode) {
+      console.error('Cannot play audioNode as it does not exist.')
+    }
+
+    current = audioNode
+
+    // Always play sound from beginning.
+    // Setting `currentTime` fixes the bug where playing two of the same
+    // neighboring sound samples only emits a single sound.
+    audioNode.currentTime = 0
+    audioNode.play()
+
+    audioNode.onended = () => {
+      current = undefined
+    }
+  }
+
+  return { _play, _stop }
+})()
+
+// see App.css
 const auxBtnClass = 'sound-item-aux-btn'
 
 let id = 0
@@ -20,17 +52,19 @@ class QueuedSound extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
     path: PropTypes.string,
-    deleteSound: PropTypes.func.isRequired
+    deleteSound: PropTypes.func.isRequired,
   }
 
-  node = createRef()
+  audioNode = createRef()
 
-  clicked = event => {
+  playSound = event => {
     // this function is called EVEN WHEN the user clicks the X
     // intending to delete the sound, not play it.
     if (!event.target.classList.contains(auxBtnClass)) {
-      log(`Clicked queued sound "${this.props.name}".`)
-      playAudio(this.node.current)
+      const { name } = this.props
+
+      log(`Clicked queued sound "${name}".`)
+      _play(this.audioNode.current)
     }
   }
 
@@ -38,11 +72,11 @@ class QueuedSound extends Component {
     const { name, path, deleteSound } = this.props
 
     return (
-      <div className="sound-item queued-sound-item" onClick={this.clicked}>
+      <div className="sound-item queued-sound-item" onClick={this.playSound}>
         <kbd>{name}</kbd>
-        <audio src={path} ref={this.node} />
+        <audio src={path} ref={this.audioNode} />
         <div className={auxBtnClass} onClick={deleteSound}>
-          x
+          {'x'}
         </div>
       </div>
     )
@@ -53,32 +87,31 @@ class Sound extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
     path: PropTypes.string, // If no audio provided, this is a rest note.
-    addSound: PropTypes.func.isRequired
+    addSound: PropTypes.func.isRequired,
   }
 
-  node = createRef()
+  audioNode = createRef()
 
   // TODO: onplay => animate css
   // componentDidMount() {
-  //   this.node.current.onplay = () => {
-  //   }
+  // this.props.audioNode.onplay = () => { }
   // }
 
-  clicked = event => {
-    // If user did NOT click the auxiliary button, then:
-    if (!event.target.classList.contains(auxBtnClass)) {
-      log(`Clicked sound "${this.props.name}".`)
-      playAudio(this.node.current)
-    }
+  playSound = event => {
+    log(`Clicked sound "${this.props.name}".`)
+    _play(this.audioNode.current)
   }
 
   enqueue = event => {
+    // User intended to click the play button, not to enqueue.
+    if (event.target.classList.contains(auxBtnClass)) return
+
     const { addSound, name, path } = this.props
 
     addSound({
       name: name,
       path: path && path,
-      node: this.node
+      audioNode: this.audioNode,
     })
   }
 
@@ -86,11 +119,11 @@ class Sound extends Component {
     const { name, path } = this.props
 
     return (
-      <div className="sound-item" onClick={this.clicked}>
+      <div className="sound-item" onClick={this.enqueue}>
         <kbd>{name}</kbd>
-        <audio src={path} ref={this.node} />
-        <div className={auxBtnClass} onClick={this.enqueue}>
-          +
+        <audio src={path} ref={this.audioNode} />
+        <div className={auxBtnClass} onClick={this.playSound}>
+          {'>'}
         </div>
       </div>
     )
@@ -100,12 +133,19 @@ class Sound extends Component {
 class PlayButton extends Component {
   static propTypes = {
     disabled: PropTypes.bool.isRequired,
-    start: PropTypes.func.isRequired
+    start: PropTypes.func.isRequired,
+    stop: PropTypes.func.isRequired,
+  }
+
+  state = {
+    isPlaying: false,
   }
 
   componentDidMount() {
     this.listener = event => {
-      if (event.code === 'Space') this.props.start()
+      if (event.code === 'Space') {
+        this.props.clicked()
+      }
     }
 
     window.addEventListener('keydown', this.listener)
@@ -115,10 +155,19 @@ class PlayButton extends Component {
     window.removeEventListener('keydown', this.listener)
   }
 
-  clicked = () => {
-    const { disabled, start } = this.props
+  play = async () => {
+    const { disabled, start, stop } = this.props
+
     if (disabled) return
-    start()
+
+    if (this.state.isPlaying) {
+      this.setState({ isPlaying: false })
+      stop()
+    } else {
+      this.setState({ isPlaying: true })
+      await start()
+      this.setState({ isPlaying: false })
+    }
   }
 
   render() {
@@ -127,10 +176,10 @@ class PlayButton extends Component {
     return (
       <div
         className={`play-btn-container ${disabled ? 'disabled' : null}`}
-        onClick={this.clicked}
+        onClick={this.play}
       >
-        <button className={disabled ? 'disabled' : null} onClick={this.clicked}>
-          {'>'}
+        <button className={disabled ? 'disabled' : null} onClick={this.play}>
+          {this.state.isPlaying ? 'x' : '>'}
         </button>
       </div>
     )
@@ -139,33 +188,38 @@ class PlayButton extends Component {
 
 export default class App extends Component {
   state = {
-    queued: [],
+    sounds: [],
     swing: false,
     loop: false,
-    bpm: 120,
-    bpmErrorMessage: null // Exists to enforce unsigned integer-ness
+    bpm: 75,
+    bpmErrorMessage: null, // Exists to enforce unsigned integer-ness
   }
 
-  addSound = ({ name, path, node }) => {
+  addSound = ({ name, path, audioNode }) => {
     log(`Adding sound "${name}" to queue.`)
     this.setState({
-      queued: this.state.queued.concat({ name, path, node })
+      sounds: this.state.sounds.concat({ name, path, audioNode }),
     })
   }
 
   // Sorta dependency injecting when mapping props to view.
   createDeleteSound = index => () => {
-    log(`Deleting sound "${this.state.queued[index].name}" at index ${index}.`)
+    log(`Deleting sound "${this.state.sounds[index].name}" at index ${index}.`)
     this.setState({
-      queued: this.state.queued.filter((_, i) => i !== index)
+      sounds: this.state.sounds.filter((_, i) => i !== index),
     })
+  }
+
+  stop = () => {
+    log('Stopping song.')
+    _stop()
   }
 
   start = async () => {
     log('Starting song.')
 
-    const { queued, swing, loop, bpm } = this.state
-    const size = queued.length
+    const { sounds, swing, loop, bpm } = this.state
+    const size = sounds.length
 
     if (size === 0) {
       alert('Double click sounds from the top to queue them at bottom.')
@@ -178,23 +232,23 @@ export default class App extends Component {
         if (swing) {
           if (index % 2 === 0) {
             const converted = convert(bpm)
-            const swung = converted / 3
+            const swung = converted / 2.5
             await delay(converted - swung)
-          } else {
-            await delay(convert(bpm))
           }
-        } else {
-          await delay(convert(bpm))
         }
+
+        await delay(convert(bpm))
       }
 
-      playAudio(queued[index].node.current)
+      _play(sounds[index].audioNode.current)
     }
 
     if (loop) {
       await delay(convert(bpm))
       this.start()
     }
+
+    return
   }
 
   handleBPM = event => {
@@ -205,12 +259,12 @@ export default class App extends Component {
 
       if (bpm < 40) {
         this.setState({
-          bpmErrorMessage: 'BPM cannot go below 40.'
+          bpmErrorMessage: 'BPM cannot go below 40.',
         })
       } else {
         this.setState({
           bpm,
-          bpmErrorMessage: null
+          bpmErrorMessage: null,
         })
       }
     }
@@ -225,15 +279,16 @@ export default class App extends Component {
   }
 
   render() {
-    const { queued, bpm, swing, loop } = this.state
-    const size = queued.length
+    const { sounds, bpm, swing, loop, bpmErrorMessage } = this.state
+    const size = sounds.length
     const QueuedSoundViews =
       size &&
-      queued.map((sound, index) => (
+      sounds.map(({ name, path, audioNode }, index) => (
         <QueuedSound
           key={id++}
-          name={sound.name}
-          path={sound.path}
+          name={name}
+          path={path}
+          audioNode={audioNode}
           deleteSound={this.createDeleteSound(index)}
         />
       ))
@@ -260,10 +315,8 @@ export default class App extends Component {
         </div>
 
         <div className="options-container">
-          {this.state.bpmErrorMessage && (
-            <div className="bpm-error-message">
-              {this.state.bpmErrorMessage}
-            </div>
+          {bpmErrorMessage && (
+            <div className="bpm-error-message">{bpmErrorMessage}</div>
           )}
 
           <span>BPM:</span>
@@ -291,7 +344,11 @@ export default class App extends Component {
         </div>
 
         <section className="song-container sound-items-container">
-          <PlayButton disabled={size === 0} start={this.start} />
+          <PlayButton
+            disabled={size === 0}
+            start={this.start}
+            stop={this.stop}
+          />
 
           <div className="sound-items-container">
             {QueuedSoundViews || 'You need waayy more clout, yo.'}
@@ -312,18 +369,6 @@ function convert(ms) {
 // https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep/39914235#39914235
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-function playAudio(audioNode) {
-  if (!audioNode) {
-    console.error(`Cannot play audioNode: ${audioNode.src}`)
-  }
-
-  // Always play sound from beginning.
-  // Setting `currentTime` fixes the bug where playing two of the same
-  // neighboring sound samples only emits a single sound.
-  audioNode.currentTime = 0
-  audioNode.play()
 }
 
 const DEV = process.env.NODE_ENV !== 'production'
