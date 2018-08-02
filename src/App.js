@@ -11,37 +11,7 @@ import PropTypes from 'prop-types'
 
 import './App.css'
 
-const { _stop, _play } = (function() {
-  let current
-
-  const _stop = () => {
-    console.log('current is:', current)
-    if (current) {
-      current.stop()
-      // current = undefined
-    }
-  }
-
-  const _play = audioNode => {
-    if (!audioNode) {
-      console.error('Cannot play audioNode as it does not exist.')
-    }
-
-    current = audioNode
-
-    // Always play sound from beginning.
-    // Setting `currentTime` fixes the bug where playing two of the same
-    // neighboring sound samples only emits a single sound.
-    audioNode.currentTime = 0
-    audioNode.play()
-
-    audioNode.onended = () => {
-      current = undefined
-    }
-  }
-
-  return { _play, _stop }
-})()
+const DEV = process.env.NODE_ENV !== 'production'
 
 // see App.css
 const auxBtnClass = 'sound-item-aux-btn'
@@ -64,7 +34,7 @@ class QueuedSound extends Component {
       const { name } = this.props
 
       log(`Clicked queued sound "${name}".`)
-      _play(this.audioNode.current)
+      playAudio(this.audioNode.current)
     }
   }
 
@@ -91,15 +61,23 @@ class Sound extends Component {
   }
 
   audioNode = createRef()
+  containerNode = createRef()
 
-  // TODO: onplay => animate css
-  // componentDidMount() {
-  // this.props.audioNode.onplay = () => { }
-  // }
+  componentDidMount() {
+    let container = this.containerNode.current
+
+    container.onplay = () => {
+      container.classList.add('playing')
+    }
+
+    container.onended = () => {
+      container.classList.remove('playing')
+    }
+  }
 
   playSound = event => {
     log(`Clicked sound "${this.props.name}".`)
-    _play(this.audioNode.current)
+    playAudio(this.audioNode.current)
   }
 
   enqueue = event => {
@@ -119,7 +97,11 @@ class Sound extends Component {
     const { name, path } = this.props
 
     return (
-      <div className="sound-item" onClick={this.enqueue}>
+      <div
+        className="sound-item"
+        onClick={this.enqueue}
+        ref={this.containerNode}
+      >
         <kbd>{name}</kbd>
         <audio src={path} ref={this.audioNode} />
         <div className={auxBtnClass} onClick={this.playSound}>
@@ -155,6 +137,8 @@ class PlayButton extends Component {
     window.removeEventListener('keydown', this.listener)
   }
 
+  // TODO:
+  // PlayButton shows stop sign only for first playthrough of song while this.state.loop is true.
   play = async () => {
     const { disabled, start, stop } = this.props
 
@@ -192,8 +176,10 @@ export default class App extends Component {
     swing: false,
     loop: false,
     bpm: 75,
-    bpmErrorMessage: null, // Exists to enforce unsigned integer-ness
+    bpmErrorMessage: null, // Enforces unsigned integer-ness on BPM input.
   }
+
+  stopRequested = false
 
   addSound = ({ name, path, audioNode }) => {
     log(`Adding sound "${name}" to queue.`)
@@ -202,17 +188,20 @@ export default class App extends Component {
     })
   }
 
-  // Sorta dependency injecting when mapping props to view.
+  // The `index` dependency gets injected when mapping state to view.
   createDeleteSound = index => () => {
-    log(`Deleting sound "${this.state.sounds[index].name}" at index ${index}.`)
+    const { sounds } = this.state
+
+    log(`Deleting sound "${sounds[index].name}" at index ${index}.`)
+
     this.setState({
-      sounds: this.state.sounds.filter((_, i) => i !== index),
+      sounds: sounds.filter((_, i) => i !== index),
     })
   }
 
   stop = () => {
     log('Stopping song.')
-    _stop()
+    this.stopRequested = true
   }
 
   start = async () => {
@@ -222,11 +211,17 @@ export default class App extends Component {
     const size = sounds.length
 
     if (size === 0) {
-      alert('Double click sounds from the top to queue them at bottom.')
+      alert('Click sounds from the top to queue them to be played (in order).')
       return
     }
 
     for (let index = 0; index < size; index++) {
+      if (this.stopRequested) {
+        sounds[index].audioNode.current.pause()
+        this.stopRequested = false
+        break
+      }
+
       // Do not delay after pressing start button.
       if (index !== 0) {
         if (swing) {
@@ -240,15 +235,13 @@ export default class App extends Component {
         await delay(convert(bpm))
       }
 
-      _play(sounds[index].audioNode.current)
+      await playAudio(sounds[index].audioNode.current)
     }
 
     if (loop) {
       await delay(convert(bpm))
-      this.start()
+      await this.start()
     }
-
-    return
   }
 
   handleBPM = event => {
@@ -371,9 +364,33 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-const DEV = process.env.NODE_ENV !== 'production'
 function log(message) {
   if (DEV) {
     console.log('Log: ' + message)
+  }
+}
+
+// https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+async function playAudio(audioNode) {
+  // Always play sound from beginning.
+  // Setting `currentTime` fixes the bug where playing two of the same
+  // neighboring sound samples only emits a single sound.
+  audioNode.currentTime = 0
+
+  let promise = audioNode.play()
+
+  if (promise) {
+    try {
+      await promise
+    } catch (error) {
+      console.error(`playAudio() Error: ${error}`)
+    }
+  } else {
+    log('This should not happen.')
+
+    // Audio _should_ be able to be played from start to finish w/o stuttering.
+    audioNode.canplaythrough = () => {
+      audioNode.play()
+    }
   }
 }

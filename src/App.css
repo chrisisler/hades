@@ -24,12 +24,11 @@
 } .sound-item:hover {
   color: black;
   border: 1px solid #999;
-} .sound-item:active {
-  transform: scale(1.1);
-}
+} 
 .sound-item kbd {
   text-shadow: 0 0 .5rem #ccc;
 }
+
 .sound-item-aux-btn {
   margin: 0;
   padding: 0 8px;
@@ -144,4 +143,9 @@ kbd { display: block; }
 .bpm-error-message {
   color: red;
   text-decoration: underline
+}
+
+.playing {
+  transform: scale(1.1);
+  background-color: #ffc600;
 }
