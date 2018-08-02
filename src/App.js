@@ -4,19 +4,20 @@
 // Need a way to get output from this app and turn it into some thing a DAW can use.
 // Scroll queued samples container right most if item is added.
 // Fix multi-play bug when loop is on and play button is pressed multiple times.
-// TODO: onplay => animate css
+// onplay => animate css
+// Replace forloop with setTimeout for stop feature to work properly?
 
 import React, { Component, createRef } from 'react'
 import PropTypes from 'prop-types'
 
+// Don't @ me
 import './App.css'
 
 const DEV = process.env.NODE_ENV !== 'production'
 
-// see App.css
 const auxBtnClass = 'sound-item-aux-btn'
 
-let id = 0
+let keyID = 0
 
 class QueuedSound extends Component {
   static propTypes = {
@@ -25,16 +26,29 @@ class QueuedSound extends Component {
     deleteSound: PropTypes.func.isRequired,
   }
 
-  audioNode = createRef()
+  queuedAudioNode = createRef()
+  queuedContainerNode = createRef()
+
+  componentDidMount() {
+    let queuedContainer = this.queuedContainerNode.current
+    let queuedAudio = this.queuedAudioNode.current
+
+    queuedAudio.onplay = () => {
+      queuedContainer.classList.add('playing')
+    }
+    queuedAudio.onended = () => {
+      queuedContainer.classList.remove('playing')
+    }
+  }
 
   playSound = event => {
-    // this function is called EVEN WHEN the user clicks the X
+    // this function is called EVEN WHEN the user clicks the X,
     // intending to delete the sound, not play it.
     if (!event.target.classList.contains(auxBtnClass)) {
       const { name } = this.props
 
       log(`Clicked queued sound "${name}".`)
-      playAudio(this.audioNode.current)
+      playAudio(this.queuedAudioNode.current)
     }
   }
 
@@ -42,9 +56,13 @@ class QueuedSound extends Component {
     const { name, path, deleteSound } = this.props
 
     return (
-      <div className="sound-item queued-sound-item" onClick={this.playSound}>
+      <div
+        className="sound-item queued-sound-item"
+        onClick={this.playSound}
+        ref={this.queuedContainerNode}
+      >
         <kbd>{name}</kbd>
-        <audio src={path} ref={this.audioNode} />
+        <audio src={path && path} ref={this.queuedAudioNode} />
         <div className={auxBtnClass} onClick={deleteSound}>
           {'x'}
         </div>
@@ -63,14 +81,15 @@ class Sound extends Component {
   audioNode = createRef()
   containerNode = createRef()
 
+  // TODO: onplay => animate css
   componentDidMount() {
     let container = this.containerNode.current
+    let audio = this.audioNode.current
 
-    container.onplay = () => {
+    audio.onplay = () => {
       container.classList.add('playing')
     }
-
-    container.onended = () => {
+    audio.onended = () => {
       container.classList.remove('playing')
     }
   }
@@ -103,9 +122,9 @@ class Sound extends Component {
         ref={this.containerNode}
       >
         <kbd>{name}</kbd>
-        <audio src={path} ref={this.audioNode} />
+        <audio src={path && path} ref={this.audioNode} />
         <div className={auxBtnClass} onClick={this.playSound}>
-          {'>'}
+          {path && '>'}
         </div>
       </div>
     )
@@ -278,7 +297,7 @@ export default class App extends Component {
       size &&
       sounds.map(({ name, path, audioNode }, index) => (
         <QueuedSound
-          key={id++}
+          key={keyID++}
           name={name}
           path={path}
           audioNode={audioNode}
@@ -371,6 +390,9 @@ function log(message) {
 }
 
 // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+// https://github.com/google/blockly/issues/299
+// http://html5doctor.com/html5-audio-the-state-of-play/
+// http://html5doctor.com/native-audio-in-the-browser/
 async function playAudio(audioNode) {
   // Always play sound from beginning.
   // Setting `currentTime` fixes the bug where playing two of the same
@@ -389,7 +411,9 @@ async function playAudio(audioNode) {
     log('This should not happen.')
 
     // Audio _should_ be able to be played from start to finish w/o stuttering.
-    audioNode.canplaythrough = () => {
+    // https://developer.mozilla.org/en-US/docs/Web/API/GlobalEventHandlers/GlobalEventHandlers.oncanplaythrough
+    audioNode.oncanplaythrough = () => {
+      log('oncanplaythrough')
       audioNode.play()
     }
   }

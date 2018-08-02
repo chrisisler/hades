@@ -20,7 +20,7 @@
   text-align: center;
   position: relative;
   border: 1px solid transparent;
-  transition: .15s;
+  /* transition: .15s; */
 } .sound-item:hover {
   color: black;
   border: 1px solid #999;
@@ -147,5 +147,5 @@ kbd { display: block; }
 
 .playing {
   transform: scale(1.1);
-  background-color: #ffc600;
+  border: 1px solid black;
 }
