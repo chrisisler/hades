@@ -1,10 +1,7 @@
 // Goals:
 // More sound files (drum kit, piano).
-// Need gridlines (and enhanced gridlines every K'th (where K is input by UI)).
 // Need a way to get output from this app and turn it into some thing a DAW can use.
-// Scroll queued samples container right most if item is added.
 // Fix multi-play bug when loop is on and play button is pressed multiple times.
-// onplay => animate css
 // Replace forloop with setTimeout for stop feature to work properly?
 
 import React, { Component, createRef } from 'react'
@@ -26,21 +23,6 @@ class QueuedSound extends Component {
     deleteSound: PropTypes.func.isRequired,
   }
 
-  queuedAudioNode = createRef()
-  queuedContainerNode = createRef()
-
-  componentDidMount() {
-    let queuedContainer = this.queuedContainerNode.current
-    let queuedAudio = this.queuedAudioNode.current
-
-    queuedAudio.onplay = () => {
-      queuedContainer.classList.add('playing')
-    }
-    queuedAudio.onended = () => {
-      queuedContainer.classList.remove('playing')
-    }
-  }
-
   playSound = event => {
     // this function is called EVEN WHEN the user clicks the X,
     // intending to delete the sound, not play it.
@@ -56,13 +38,9 @@ class QueuedSound extends Component {
     const { name, path, deleteSound } = this.props
 
     return (
-      <div
-        className="sound-item queued-sound-item"
-        onClick={this.playSound}
-        ref={this.queuedContainerNode}
-      >
+      <div className="sound-item queued-sound-item" onClick={this.playSound}>
         <kbd>{name}</kbd>
-        <audio src={path && path} ref={this.queuedAudioNode} />
+        <audio src={path && path} />
         <div className={auxBtnClass} onClick={deleteSound}>
           {'x'}
         </div>
@@ -79,20 +57,6 @@ class Sound extends Component {
   }
 
   audioNode = createRef()
-  containerNode = createRef()
-
-  // TODO: onplay => animate css
-  componentDidMount() {
-    let container = this.containerNode.current
-    let audio = this.audioNode.current
-
-    audio.onplay = () => {
-      container.classList.add('playing')
-    }
-    audio.onended = () => {
-      container.classList.remove('playing')
-    }
-  }
 
   playSound = event => {
     log(`Clicked sound "${this.props.name}".`)
@@ -116,11 +80,7 @@ class Sound extends Component {
     const { name, path } = this.props
 
     return (
-      <div
-        className="sound-item"
-        onClick={this.enqueue}
-        ref={this.containerNode}
-      >
+      <div className="sound-item" onClick={this.enqueue}>
         <kbd>{name}</kbd>
         <audio src={path && path} ref={this.audioNode} />
         <div className={auxBtnClass} onClick={this.playSound}>
@@ -145,7 +105,7 @@ class PlayButton extends Component {
   componentDidMount() {
     this.listener = event => {
       if (event.code === 'Space') {
-        this.props.clicked()
+        this.props.play()
       }
     }
 
@@ -194,6 +154,7 @@ export default class App extends Component {
     sounds: [],
     swing: false,
     loop: false,
+    grid: true,
     bpm: 75,
     bpmErrorMessage: null, // Enforces unsigned integer-ness on BPM input.
   }
@@ -290,20 +251,48 @@ export default class App extends Component {
     this.setState({ swing: !this.state.swing })
   }
 
+  toggleGrid = () => {
+    this.setState({ grid: !this.state.grid })
+  }
+
   render() {
-    const { sounds, bpm, swing, loop, bpmErrorMessage } = this.state
+    const { sounds, bpm, swing, grid, loop, bpmErrorMessage } = this.state
     const size = sounds.length
     const QueuedSoundViews =
       size &&
-      sounds.map(({ name, path, audioNode }, index) => (
-        <QueuedSound
-          key={keyID++}
-          name={name}
-          path={path}
-          audioNode={audioNode}
-          deleteSound={this.createDeleteSound(index)}
-        />
-      ))
+      sounds.map(({ name, path, audioNode }, index) => {
+        if (grid) {
+          return (
+            <div className="gridded">
+              <QueuedSound
+                key={keyID++}
+                name={name}
+                path={path}
+                audioNode={audioNode}
+                deleteSound={this.createDeleteSound(index)}
+              />
+            </div>
+          )
+        }
+        return (
+          <QueuedSound
+            key={keyID++}
+            name={name}
+            path={path}
+            audioNode={audioNode}
+            deleteSound={this.createDeleteSound(index)}
+          />
+        )
+      })
+    // sounds.map(({ name, path, audioNode }, index) => (
+    //   <QueuedSound
+    //     key={keyID++}
+    //     name={name}
+    //     path={path}
+    //     audioNode={audioNode}
+    //     deleteSound={this.createDeleteSound(index)}
+    //   />
+    // ))
 
     return (
       <main>
@@ -352,6 +341,13 @@ export default class App extends Component {
           <span>Swing:</span>
           <button onClick={this.toggleSwing} className="options-btn">
             {swing ? 'On' : 'Off'}
+          </button>
+
+          <br />
+
+          <span>Grid:</span>
+          <button onClick={this.toggleGrid} className="options-btn">
+            {grid ? 'On' : 'Off'}
           </button>
         </div>
 

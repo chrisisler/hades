@@ -1,4 +1,5 @@
 .sound-items-container {
+  padding: 0;
   overflow-x: scroll;
   display: flex;
   flex: 1;
@@ -49,6 +50,11 @@
 
 /* apparently this does something */
 kbd { display: block; }
+
+.gridded {
+  border: 1px solid black;
+  display: flex;
+}
 
 .song-container {
   min-height: 20vh;
@@ -143,9 +149,4 @@ kbd { display: block; }
 .bpm-error-message {
   color: red;
   text-decoration: underline
-}
-
-.playing {
-  transform: scale(1.1);
-  border: 1px solid black;
 }
